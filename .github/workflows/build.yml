@@ -54,7 +54,7 @@ jobs:
         run: |
           cordova platform add android@13.0.0
           cordova plugin add ../plugin-sms
-          cordova build android --debug -- --gradleArg=--no-build-cache
+          cordova build android --debug -- --gradleArg=--max-workers=1
 
       - name: Collect APK
         run: cp app/platforms/android/app/build/outputs/apk/debug/app-debug.apk RentalKhata.apk
