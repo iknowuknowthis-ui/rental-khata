@@ -23,8 +23,7 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Accept Android SDK licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || yes | sdkmanager --licenses
+      - uses: android-actions/setup-android@v3
 
       - name: Install Cordova
         run: npm install -g cordova@12.0.0
@@ -52,9 +51,29 @@ jobs:
       - name: Build debug APK
         working-directory: app
         run: |
-          cordova platform add android@13.0.0
+          cordova platform add android@12.0.1
           cordova plugin add ../plugin-sms
-          cordova build android --debug -- --gradleArg=--max-workers=1
+
+          cat > platforms/android/gradle/wrapper/gradle-wrapper.properties << 'WRAPEOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          WRAPEOF
+
+          cat > platforms/android/build-extras.gradle << 'EXTRAEOF'
+          allprojects {
+            configurations.all {
+              resolutionStrategy {
+                force 'androidx.appcompat:appcompat:1.6.1'
+                force 'androidx.core:core:1.10.1'
+              }
+            }
+          }
+          EXTRAEOF
+
+          cordova build android --debug -- --gradleArg=--no-daemon --gradleArg=--no-parallel
 
       - name: Collect APK
         run: cp app/platforms/android/app/build/outputs/apk/debug/app-debug.apk RentalKhata.apk
