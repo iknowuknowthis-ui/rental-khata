@@ -1,0 +1,62 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Cordova
+        run: npm install -g cordova@12.0.0
+
+      - name: Assemble project from flat repo files
+        run: |
+          mkdir -p app/www
+          cp config.xml app/config.xml
+          cp index.html app/www/index.html
+          mkdir -p plugin-sms/www plugin-sms/src/android plugin-sms/res/xml
+          cp plugin.xml plugin-sms/plugin.xml
+          cp smspayment.js plugin-sms/www/smspayment.js
+          cp SmsPaymentPlugin.java SmsReceiver.java plugin-sms/src/android/
+          cp smspay_paths.xml plugin-sms/res/xml/smspay_paths.xml
+
+      - name: Build debug APK
+        working-directory: app
+        run: |
+          cordova platform add android@13.0.0
+          cordova plugin add ../plugin-sms
+          cordova build android --debug
+
+      - name: Collect APK
+        run: cp app/platforms/android/app/build/outputs/apk/debug/app-debug.apk RentalKhata.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RentalKhata-apk
+          path: RentalKhata.apk
+
+      - name: Publish release (direct APK download)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Rental Khata build ${{ github.run_number }}
+          files: RentalKhata.apk
