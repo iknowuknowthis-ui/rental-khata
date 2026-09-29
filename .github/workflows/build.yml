@@ -35,6 +35,7 @@ jobs:
         run: |
           mkdir -p plugin/www plugin/res/xml plugin/src/android
           cp plugin.xml plugin/plugin.xml
+          echo '{"name":"cordova-plugin-smspayment","version":"1.0.0","cordova":{"id":"cordova-plugin-smspayment","platforms":["android"]}}' > plugin/package.json
           cp smspayment.js plugin/www/
           cp smspay_paths.xml plugin/res/xml/
           cp SmsPaymentPlugin.java SmsReceiver.java plugin/src/android/
