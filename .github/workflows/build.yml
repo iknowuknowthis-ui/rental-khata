@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -14,78 +14,57 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
       - name: Install Cordova
-        run: npm install -g cordova@12.0.0
+        run: npm install -g cordova@12
 
       - name: Assemble project from flat repo files
         run: |
-          mkdir -p app/www
+          mkdir -p plugin/www plugin/res/xml plugin/src/android
+          cp plugin.xml plugin/plugin.xml
+          cp smspayment.js plugin/www/
+          cp smspay_paths.xml plugin/res/xml/
+          cp SmsPaymentPlugin.java SmsReceiver.java plugin/src/android/
+
+          cordova create app com.ankit.khata "Rental Khata"
           cp config.xml app/config.xml
           cp index.html app/www/index.html
-          mkdir -p plugin-sms/www plugin-sms/src/android plugin-sms/res/xml
-          cp plugin.xml plugin-sms/plugin.xml
-          cp smspayment.js plugin-sms/www/smspayment.js
-          cp SmsPaymentPlugin.java SmsReceiver.java plugin-sms/src/android/
-          cp smspay_paths.xml plugin-sms/res/xml/smspay_paths.xml
-          cat > plugin-sms/package.json << 'PKGEOF'
-          {
-            "name": "cordova-plugin-smspayment",
-            "version": "1.0.0",
-            "description": "SMS payment detection",
-            "cordova": { "id": "cordova-plugin-smspayment", "platforms": ["android"] },
-            "keywords": ["cordova"]
-          }
-          PKGEOF
+
+          cd app
+          cordova platform add android@13
+          cordova plugin add ../plugin
 
       - name: Build debug APK
-        working-directory: app
         run: |
-          cordova platform add android@12.0.1
-          cordova plugin add ../plugin-sms
-
-          cat > platforms/android/gradle/wrapper/gradle-wrapper.properties << 'WRAPEOF'
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          WRAPEOF
-
-          cat > platforms/android/build-extras.gradle << 'EXTRAEOF'
-          allprojects {
-            configurations.all {
-              resolutionStrategy {
-                force 'androidx.appcompat:appcompat:1.6.1'
-                force 'androidx.core:core:1.10.1'
-              }
-            }
-          }
-          EXTRAEOF
-
-          cordova build android --debug -- --gradleArg=--no-daemon --gradleArg=--no-parallel
+          cd app
+          cordova build android --debug
 
       - name: Collect APK
-        run: cp app/platforms/android/app/build/outputs/apk/debug/app-debug.apk RentalKhata.apk
+        run: |
+          mkdir -p out
+          cp app/platforms/android/app/build/outputs/apk/debug/app-debug.apk out/RentalKhata.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: RentalKhata-apk
-          path: RentalKhata.apk
+          path: out/RentalKhata.apk
 
       - name: Publish release (direct APK download)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Rental Khata build ${{ github.run_number }}
-          files: RentalKhata.apk
+          name: Build ${{ github.run_number }}
+          files: out/RentalKhata.apk
